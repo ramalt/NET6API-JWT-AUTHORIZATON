@@ -2,12 +2,11 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.IdentityModel.Tokens;
 using TodoAPI.Config;
 using TodoAPI.Data;
 using TodoAPI.Services;
-using TodoAPI.Settings;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -58,15 +57,9 @@ builder.Services.AddScoped<IJwtService, JwtService>();
 
 var app = builder.Build();
 
-// Seed işlemi
-using (var scope = app.Services.CreateScope())
-{
-    var services = scope.ServiceProvider;
-    var roleManager = services.GetRequiredService<RoleManager<IdentityRole>>();
-    
-    // Seed işlemi
-    RoleSeeder.InitializeRoles(roleManager);
-}
+SeedUserService.SeedDatabaseAsync(app.Services).Wait();
+
+
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
