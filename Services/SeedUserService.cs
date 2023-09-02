@@ -36,7 +36,7 @@ public static class SeedUserService
                 await userManager.AddToRoleAsync(user, "Admin");
 
                 // Diğer claim'leri eklemek için IdentityUserClaims tablosunu kullanabilirsiniz.
-                await userManager.AddClaimAsync(user, new Claim(ClaimTypes.Role, "Admin"));
+                await userManager.AddClaimAsync(user, new Claim(ClaimTypes.Role, "Admin"));            
             }
         }
     }

@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using TodoAPI.Dtos.Auth;
@@ -46,7 +48,13 @@ public class AuthController : ControllerBase
             IdentityResult? created = await _userManager.CreateAsync(newUser, user.Password);
             if (created.Succeeded)
             {
+                await _userManager.AddToRoleAsync(newUser, "AppUser");
+
+                var userClaim = new Claim("Type", "DefaultAppUser");
+                await _userManager.AddClaimAsync(newUser, userClaim);
+
                 AuthResult authResult = await _jwtService.GenerateToken(newUser);
+
                 //return a token
                 return Ok(authResult);
             }

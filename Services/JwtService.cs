@@ -19,11 +19,16 @@ public class JwtService : IJwtService
     private readonly JwtConfig _jwtConfig;
     private readonly ApiDbContext _context;
     private readonly TokenValidationParameters _tokenValidationParameters;
-    public JwtService(IOptionsMonitor<JwtConfig> jwtConfig, ApiDbContext context, TokenValidationParameters tokenValidationParameters)
+
+    private readonly RoleManager<IdentityRole> _roleManager;
+    private readonly UserManager<IdentityUser> _userManager;
+    public JwtService(IOptionsMonitor<JwtConfig> jwtConfig, ApiDbContext context, TokenValidationParameters tokenValidationParameters, UserManager<IdentityUser> userManager, RoleManager<IdentityRole> roleManager)
     {
         _jwtConfig = jwtConfig.CurrentValue;
         _context = context;
         _tokenValidationParameters = tokenValidationParameters;
+        _userManager = userManager;
+        _roleManager = roleManager;
     }
 
     public async Task<AuthResult> GenerateToken(IdentityUser user)
@@ -31,17 +36,13 @@ public class JwtService : IJwtService
 
         JwtSecurityTokenHandler? jwtTokenHandler = new JwtSecurityTokenHandler();
 
-        Byte[] key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
+        byte[] key = Encoding.ASCII.GetBytes(_jwtConfig.Secret);
+
+        var claims = await GetAllValidClaims(user);
 
         SecurityTokenDescriptor tokenDescriptor = new SecurityTokenDescriptor
         {
-            Subject = new ClaimsIdentity(new[]
-            {
-                new Claim("Id", user.Id),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email),
-                new Claim(JwtRegisteredClaimNames.Sub, user.Email),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            }),
+            Subject = new ClaimsIdentity(claims),
             Expires = DateTime.UtcNow.AddSeconds(35),
             SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
         };
@@ -200,12 +201,46 @@ public class JwtService : IJwtService
         return datetimeVal;
     }
 
-
     private string GetRandomString()
     {
         Random random = new Random();
         string chars = "ABCDEFGHIJKLMNOPRSTUVYZWX0123456789";
         return new string(Enumerable.Repeat(chars, 35).Select(n => n[new Random().Next(n.Length)]).ToArray());
+
+    }
+
+    private async Task<List<Claim>> GetAllValidClaims(IdentityUser user)
+    {
+        List<Claim> claims = new List<Claim>
+        {
+            new Claim("Id", user.Id),
+            new Claim(JwtRegisteredClaimNames.Email, user.Email),
+            new Claim(JwtRegisteredClaimNames.Sub, user.Email),
+            new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+
+        };
+
+        var userClaims = await _userManager.GetClaimsAsync(user);
+        claims.AddRange(userClaims);
+
+        var userRoles = await _userManager.GetRolesAsync(user);
+
+        foreach (var userRole in userRoles)
+        {
+            var role = await _roleManager.FindByNameAsync(userRole);
+
+            if (role != null)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, userRole));
+                var roleClaims = await _roleManager.GetClaimsAsync(role);
+                foreach (var roleClaim in roleClaims)
+                {
+                    claims.Add(roleClaim);
+                }
+            }
+        }
+
+        return claims;
 
     }
 }

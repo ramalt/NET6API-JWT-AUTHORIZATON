@@ -48,6 +48,12 @@ builder.Services.AddAuthentication(options =>
     jwt.TokenValidationParameters = tokenValidationParams;
 });
 
+builder.Services.AddAuthorization(opt =>
+{
+    opt.AddPolicy("TypePolicy",
+                    policy => policy.RequireClaim("Type"));
+});
+
 builder.Services.AddSingleton(tokenValidationParams);
 
 builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => { options.SignIn.RequireConfirmedAccount = true; })
